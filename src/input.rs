@@ -1,13 +1,28 @@
 //! Helper module that allows to read input from a file and into a user-specified destination.
 //!
-//! For most implementations, the input is expected to consist of a list of values of the same type separated by newlines.
+//! For most implementations, the input is expected to consist of a list of values of the same type
+//! separated by newlines, whitespace or a user-specified delimiter.
 //!
 //! # Examples
 //! ```no_run
 //! use aoc_util::input::{FileReader, FromFile};
 //!
-//! let strings: Vec<String> = FileReader::new().read_from_file("string_input.txt").unwrap();
-//! let doubles: Vec<f64> = FileReader::new().read_from_file("double_input.txt").unwrap();
+//! // Read file content directly into `String`
+//! let string: String = FileReader::new()
+//!     .read_from_file("string.txt")
+//!     .unwrap();
+//!
+//! // Read newline-separated strings into `Vec<String>`
+//! let strings: Vec<String> = FileReader::new()
+//!     .split_lines()
+//!     .read_from_file("string_input.txt")
+//!     .unwrap();
+//!
+//! // Read newline-separated floating point numbers into `Vec<f64>`
+//! let doubles: Vec<f64> = FileReader::new()
+//!     .split_lines()
+//!     .read_from_file("double_input.txt")
+//!     .unwrap();
 //! ```
 
 use std::fs::File;
@@ -52,35 +67,25 @@ impl<E> From<std::io::Error> for Error<E> {
 
 /// Read input from file.
 #[derive(Default)]
-pub struct FileReader {}
-
-impl FileReader {
-    pub fn new() -> Self {
-        Self {}
-    }
+pub struct FileReader {
+    trim: bool,
 }
 
-/// Read input into a `Vec<T>`. Input is assumed to be a list of values that can be parsed into `T`
-/// that are separated by newlines.
-impl<T> FromFile<Vec<T>> for FileReader
-where
-    T: std::str::FromStr,
-{
-    type Error = Error<<T as std::str::FromStr>::Err>;
+impl FileReader {
+    /// Create new `FileReader`.
+    pub fn new() -> Self {
+        Self { trim: false }
+    }
 
-    /// Takes a file path and tries to read the file content into a destination of type `T`.
-    ///
-    /// # Failures
-    /// Returns an error if the specified file cannot be opened or contains invalid UTF-8.
-    /// Also returns an error if the file contents cannot be parsed into values of type `T`.
-    fn read_from_file<P: AsRef<Path>>(&self, path: P) -> Result<Vec<T>, Self::Error> {
-        let file = File::open(path)?;
-        let reader = BufReader::new(file);
+    /// Trim whitespace at the beginning and end.
+    pub fn trim(mut self) -> Self {
+        self.trim = true;
+        self
+    }
 
-        reader
-            .lines()
-            .map(|line| line?.trim().parse().map_err(Error::ParseError))
-            .collect()
+    /// Split input at newlines.
+    pub fn split_lines(self) -> SplitLines {
+        SplitLines { trim: self.trim }
     }
 }
 
@@ -97,6 +102,54 @@ impl FromFile<String> for FileReader {
         let mut buffer = String::new();
 
         file.read_to_string(&mut buffer)?;
+
+        if self.trim {
+            buffer = buffer.trim().to_string();
+        }
+
         Ok(buffer)
+    }
+}
+
+/// Read input from file and split at newlines. Created using `FileReader::split_lines()`.
+pub struct SplitLines {
+    trim: bool,
+}
+
+impl SplitLines {
+    /// Trim whitespace at the beginning and end.
+    pub fn trim(mut self) -> Self {
+        self.trim = true;
+        self
+    }
+}
+
+/// Read input into a `Vec<T>`. Input is assumed to be a list of values that can be parsed into `T`
+/// that are separated by newlines.
+impl<T> FromFile<Vec<T>> for SplitLines
+where
+    T: std::str::FromStr,
+{
+    type Error = Error<<T as std::str::FromStr>::Err>;
+
+    /// Takes a file path and tries to read the file content into a destination of type `T`.
+    ///
+    /// # Failures
+    /// Returns an error if the specified file cannot be opened or contains invalid UTF-8.
+    /// Also returns an error if the file contents cannot be parsed into values of type `T`.
+    fn read_from_file<P: AsRef<Path>>(&self, path: P) -> Result<Vec<T>, Self::Error> {
+        let file = File::open(path)?;
+        let reader = BufReader::new(file);
+
+        reader
+            .lines()
+            .map(|line| {
+                if self.trim {
+                    line?.trim().parse().map_err(Error::ParseError)
+                } else {
+                    line?.parse().map_err(Error::ParseError)
+                }
+            })
+            .collect()
     }
 }
