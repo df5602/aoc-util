@@ -54,3 +54,12 @@ fn newline_delimited_strings_trim() {
         .unwrap();
     assert_eq!(vec!["A", "BC", "D"], input);
 }
+
+#[test]
+fn whitespace_delimited_numbers() {
+    let input: Vec<u32> = FileReader::new()
+        .split_whitespace()
+        .read_from_file("tests/inputs/whitespace_delimited.txt")
+        .unwrap();
+    assert_eq!(vec![4, 8, 15, 16, 23, 42], input);
+}

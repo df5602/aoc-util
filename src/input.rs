@@ -87,6 +87,11 @@ impl FileReader {
     pub fn split_lines(self) -> SplitLines {
         SplitLines { trim: self.trim }
     }
+
+    /// Split input at whitespace.
+    pub fn split_whitespace(self) -> SplitWhitespace {
+        SplitWhitespace { _private: () }
+    }
 }
 
 /// Read input into a `String`.
@@ -150,6 +155,38 @@ where
                     line?.parse().map_err(Error::ParseError)
                 }
             })
+            .collect()
+    }
+}
+
+/// Read input from file and split at whitespace. Created using `FileReader::split_whitespace()`.
+pub struct SplitWhitespace {
+    _private: (),
+}
+
+/// Read input into a `Vec<T>`. Input is assumed to be a list of values that can be parsed into `T`
+/// that are separated by whitespace.
+impl<T> FromFile<Vec<T>> for SplitWhitespace
+where
+    T: std::str::FromStr,
+{
+    type Error = Error<<T as std::str::FromStr>::Err>;
+
+    /// Takes a file path and tries to read the file content into a destination of type `T`.
+    ///
+    /// # Failures
+    /// Returns an error if the specified file cannot be opened or contains invalid UTF-8.
+    /// Also returns an error if the file contents cannot be parsed into values of type `T`.
+    fn read_from_file<P: AsRef<Path>>(&self, path: P) -> Result<Vec<T>, Self::Error> {
+        let file = File::open(path)?;
+        let mut reader = BufReader::new(file);
+        let mut buffer = String::new();
+
+        reader.read_to_string(&mut buffer)?;
+
+        buffer
+            .split_whitespace()
+            .map(|chunk| chunk.parse().map_err(Error::ParseError))
             .collect()
     }
 }
