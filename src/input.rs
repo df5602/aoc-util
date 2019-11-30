@@ -97,7 +97,7 @@ impl FileReader {
     pub fn split_char(self, delimiter: char) -> SplitChar {
         SplitChar {
             trim: self.trim,
-            delimiter: delimiter,
+            delimiter,
         }
     }
 }
