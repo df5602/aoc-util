@@ -92,6 +92,14 @@ impl FileReader {
     pub fn split_whitespace(self) -> SplitWhitespace {
         SplitWhitespace { _private: () }
     }
+
+    /// Split input at a specified delimiter.
+    pub fn split_char(self, delimiter: char) -> SplitChar {
+        SplitChar {
+            trim: self.trim,
+            delimiter: delimiter,
+        }
+    }
 }
 
 /// Read input into a `String`.
@@ -137,7 +145,7 @@ where
 {
     type Error = Error<<T as std::str::FromStr>::Err>;
 
-    /// Takes a file path and tries to read the file content into a destination of type `T`.
+    /// Takes a file path and tries to read the file content into a destination of type `Vec<T>`.
     ///
     /// # Failures
     /// Returns an error if the specified file cannot be opened or contains invalid UTF-8.
@@ -172,7 +180,7 @@ where
 {
     type Error = Error<<T as std::str::FromStr>::Err>;
 
-    /// Takes a file path and tries to read the file content into a destination of type `T`.
+    /// Takes a file path and tries to read the file content into a destination of type `Vec<T>`.
     ///
     /// # Failures
     /// Returns an error if the specified file cannot be opened or contains invalid UTF-8.
@@ -187,6 +195,53 @@ where
         buffer
             .split_whitespace()
             .map(|chunk| chunk.parse().map_err(Error::ParseError))
+            .collect()
+    }
+}
+
+/// Read input from file and split at a specified delimiter. Created using `FileReader::split_char()`.
+pub struct SplitChar {
+    trim: bool,
+    delimiter: char,
+}
+
+impl SplitChar {
+    /// Trim whitespace at the beginning and end.
+    pub fn trim(mut self) -> Self {
+        self.trim = true;
+        self
+    }
+}
+
+/// Read input into a `Vec<T>`. Input is assumed to be a list of values that can be parsed into `T`
+/// that are separated by a specified delimiter.
+impl<T> FromFile<Vec<T>> for SplitChar
+where
+    T: std::str::FromStr,
+{
+    type Error = Error<<T as std::str::FromStr>::Err>;
+
+    /// Takes a file path and tries to read the file content into a destination of type `Vec<T>`.
+    ///
+    /// # Failures
+    /// Returns an error if the specified file cannot be opened or contains invalid UTF-8.
+    /// Also returns an error if the file contents cannot be parsed into values of type `T`.
+    fn read_from_file<P: AsRef<Path>>(&self, path: P) -> Result<Vec<T>, Self::Error> {
+        let file = File::open(path)?;
+        let mut reader = BufReader::new(file);
+        let mut buffer = String::new();
+
+        reader.read_to_string(&mut buffer)?;
+
+        buffer
+            .split(self.delimiter)
+            .map(|chunk| {
+                if self.trim {
+                    chunk.trim().parse().map_err(Error::ParseError)
+                } else {
+                    chunk.parse().map_err(Error::ParseError)
+                }
+            })
             .collect()
     }
 }

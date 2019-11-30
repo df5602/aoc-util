@@ -63,3 +63,25 @@ fn whitespace_delimited_numbers() {
         .unwrap();
     assert_eq!(vec![4, 8, 15, 16, 23, 42], input);
 }
+
+#[test]
+fn comma_separated_numbers() {
+    let input: Vec<u32> = FileReader::new()
+        .split_char(',')
+        .trim()
+        .read_from_file("tests/inputs/comma_separated.txt")
+        .unwrap();
+    assert_eq!(vec![4, 8, 15, 16, 23, 42], input);
+}
+
+#[test]
+fn comma_separated_no_trim() {
+    let input: Vec<String> = FileReader::new()
+        .split_char(',')
+        .read_from_file("tests/inputs/comma_separated_no_trim.txt")
+        .unwrap();
+    assert_eq!(
+        vec!["alpha", "beta", "  gamma  ", "delta ", " epsilon"],
+        input
+    );
+}
